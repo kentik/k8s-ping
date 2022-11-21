@@ -1,0 +1,7 @@
+{
+    "name": "k8s-ping",
+    "type": "module",
+    "dependencies": {
+        "@kubernetes/client-node": "^0.17.1"
+    }
+}
