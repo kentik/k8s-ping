@@ -1,4 +1,4 @@
-import { createSocket } from 'node:dgram';
+import { createConnection, createServer } from 'node:net';
 import process from 'node:process';
 import k8s from '@kubernetes/client-node';
 
@@ -7,12 +7,15 @@ const DELAY = process.env.DELAY     ?? 1000;
 const NS    = process.env.NAMESPACE ?? 'kentik';
 const PORT  = process.env.PORT      ?? 1234;
 
-let server = createSocket('udp4');
-server.on('message', (msg, { address, port }) => {
-    console.log(`message from ${address}:${port}`);
-    server.send(msg, port, address);
+let server = createServer((socket) => {
+    let addr = socket.remoteAddress;
+    let port = socket.remotePort;
+    socket.on('data', (data) => {
+        console.log(`message from ${addr}:${port}`);
+        socket.write(data);
+    });
 });
-server.bind(PORT);
+server.listen(PORT);
 
 let config = new k8s.KubeConfig();
 config.loadFromDefault();
@@ -30,7 +33,12 @@ setInterval(async () => {
 
         console.log(`ping -> ${name} @ ${address}`);
 
-        let socket = createSocket('udp4');
-        socket.send(buffer, PORT, podIP, () => socket.close());
+        try {
+            let socket = createConnection(PORT, podIP);
+            socket.on('error', console.error);
+            socket.write(buffer, () => socket.end());
+        } catch (e) {
+            console.error(e);
+        }
     }
 }, DELAY);
